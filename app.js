@@ -1229,35 +1229,110 @@ function drawShip(ship) {
     context.strokeStyle = "rgba(255, 230, 109, 0.7)";
     context.lineWidth = 2;
     context.beginPath();
-    context.moveTo(-10, -4);
-    context.lineTo(-18, -8);
-    context.moveTo(-10, 4);
-    context.lineTo(-18, 8);
+    context.moveTo(-18, -6);
+    context.lineTo(-34, -12);
+    context.moveTo(-18, 6);
+    context.lineTo(-34, 12);
     context.stroke();
   }
 
-  context.fillStyle = ship.flash ? "#ffffff" : ship.color.fill;
+  const weapon = getWeaponConfig(ship.weaponKey);
+  const hullFill = ship.flash ? "#ffffff" : ship.color.fill;
   context.strokeStyle = ship.color.stroke;
   context.lineWidth = 2;
 
+  // Main fuselage
+  context.fillStyle = hullFill;
   context.beginPath();
-  context.moveTo(18, 0);
-  context.lineTo(-11, -9);
-  context.lineTo(-5, 0);
-  context.lineTo(-11, 9);
+  context.moveTo(28, 0);
+  context.lineTo(10, -6);
+  context.lineTo(-6, -6);
+  context.lineTo(-18, -3);
+  context.lineTo(-18, 3);
+  context.lineTo(-6, 6);
+  context.lineTo(10, 6);
   context.closePath();
   context.fill();
   context.stroke();
 
-  const weapon = getWeaponConfig(ship.weaponKey);
-  context.fillStyle = weapon.color;
+  // Nose tip / cockpit line
   context.beginPath();
-  context.arc(5, 0, 3, 0, Math.PI * 2);
+  context.moveTo(28, 0);
+  context.lineTo(34, 0);
+  context.lineTo(28, -3);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  // S-foils / wings
+  context.fillStyle = "rgba(229, 240, 255, 0.92)";
+
+  context.beginPath();
+  context.moveTo(8, -5);
+  context.lineTo(-4, -11);
+  context.lineTo(-24, -17);
+  context.lineTo(-14, -7);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(8, 5);
+  context.lineTo(-4, 11);
+  context.lineTo(-24, 17);
+  context.lineTo(-14, 7);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(3, -2);
+  context.lineTo(-7, -6);
+  context.lineTo(-24, -8);
+  context.lineTo(-14, -1);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(3, 2);
+  context.lineTo(-7, 6);
+  context.lineTo(-24, 8);
+  context.lineTo(-14, 1);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  // Engines
+  context.fillStyle = ship.flash ? "#ffffff" : "rgba(14, 25, 39, 0.95)";
+  [-14, -7, 7, 14].forEach((engineY) => {
+    context.beginPath();
+    context.roundRect(-31, engineY - 3, 12, 6, 999);
+    context.fill();
+    context.stroke();
+  });
+
+  // Engine glow
+  context.fillStyle = ship.speedBoostTimer > 0 ? "#ffe66d" : weapon.color;
+  context.shadowColor = ship.speedBoostTimer > 0 ? "#ffe66d" : weapon.color;
+  context.shadowBlur = ship.speedBoostTimer > 0 ? 20 : 12;
+  [-14, -7, 7, 14].forEach((engineY) => {
+    context.beginPath();
+    context.roundRect(-33, engineY - 2, 5, 4, 999);
+    context.fill();
+  });
+
+  // Cockpit
+  context.shadowBlur = ship.flash ? 28 : 18;
+  context.fillStyle = "rgba(255, 255, 255, 0.9)";
+  context.beginPath();
+  context.ellipse(9, 0, 5, 3.2, 0, 0, Math.PI * 2);
   context.fill();
 
-  context.fillStyle = "rgba(255, 255, 255, 0.85)";
+  // Weapon accent
+  context.fillStyle = weapon.color;
   context.beginPath();
-  context.arc(-1, 0, 2.4, 0, Math.PI * 2);
+  context.arc(18, 0, 2.8, 0, Math.PI * 2);
   context.fill();
 
   context.restore();
@@ -1280,7 +1355,7 @@ function drawShip(ship) {
   context.font = "700 14px 'Trebuchet MS', sans-serif";
   context.textAlign = "center";
   context.fillStyle = "rgba(237, 248, 255, 0.82)";
-  context.fillText(ship.name, ship.x, ship.y - 48);
+  context.fillText(ship.name, ship.x, ship.y - 56);
   context.restore();
 }
 

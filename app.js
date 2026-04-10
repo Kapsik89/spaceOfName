@@ -25,10 +25,17 @@ const PICKUP_COLLECT_MARGIN = 14;
 const MAX_PICKUPS = 4;
 const PICKUP_SPAWN_MIN = 2.1;
 const PICKUP_SPAWN_MAX = 4.2;
+const MAX_SPARKS = 160;
+const MAX_BULLETS = 90;
+const ENABLE_GLOW_EFFECTS = false;
 const STARTING_NAMES = parseNames(namesInput.value);
 
 canvas.width = WORLD_WIDTH;
 canvas.height = WORLD_HEIGHT;
+const backgroundCanvas = document.createElement("canvas");
+backgroundCanvas.width = WORLD_WIDTH;
+backgroundCanvas.height = WORLD_HEIGHT;
+const backgroundContext = backgroundCanvas.getContext("2d");
 
 const WEAPON_TYPES = {
   blaster: {
@@ -152,6 +159,7 @@ let animationFrame = null;
 let lastTick = 0;
 let rosterTiles = new Map();
 let pickupSpawnTimer = randomBetween(PICKUP_SPAWN_MIN, PICKUP_SPAWN_MAX);
+let rosterDirty = false;
 
 function parseNames(input) {
   return input
@@ -280,6 +288,10 @@ function clearWinner() {
   winnerName.textContent = "";
 }
 
+function markRosterDirty() {
+  rosterDirty = true;
+}
+
 function createProjectile(ship, options) {
   const angle = ship.angle + options.angleOffset;
   const directionX = Math.cos(angle);
@@ -356,6 +368,7 @@ function updateRoster() {
     const speedText = ship.speedBoostTimer > 0 ? "turbo" : "standard";
     meta.textContent = `Osłona: ${ship.shield} | Napęd: ${speedText}`;
   });
+  rosterDirty = false;
 }
 
 function createShip(name, index, entrants) {
@@ -424,7 +437,8 @@ function getLivingShips() {
 }
 
 function emitSparks(x, y, color, count) {
-  for (let i = 0; i < count; i += 1) {
+  const safeCount = Math.min(count, 10);
+  for (let i = 0; i < safeCount; i += 1) {
     sparks.push({
       x,
       y,
@@ -434,6 +448,10 @@ function emitSparks(x, y, color, count) {
       age: 0,
       color,
     });
+  }
+
+  if (sparks.length > MAX_SPARKS) {
+    sparks.splice(0, sparks.length - MAX_SPARKS);
   }
 }
 
@@ -447,7 +465,7 @@ function equipWeapon(ship, weaponKey) {
   ship.weaponKey = weaponKey;
   ship.weaponCharges = weapon.charges;
   ship.reload = Math.min(ship.reload, 0.22);
-  updateRoster();
+  markRosterDirty();
 }
 
 function applySupportPickup(ship, pickupKey) {
@@ -460,7 +478,7 @@ function applySupportPickup(ship, pickupKey) {
   }
 
   ship.flash = 0.7;
-  updateRoster();
+  markRosterDirty();
 }
 
 function applyDamage(ship, amount, color) {
@@ -483,7 +501,7 @@ function applyDamage(ship, amount, color) {
     setStatus(`Walka trwa. Pozostało statków: ${getLivingShips().length}.`);
   }
 
-  updateRoster();
+  markRosterDirty();
 }
 
 function explodeAt(x, y, color, ownerId, radius, damage) {
@@ -642,8 +660,12 @@ function fireWeapon(ship, target) {
     }
   }
 
+  if (bullets.length > MAX_BULLETS) {
+    bullets.splice(0, bullets.length - MAX_BULLETS);
+  }
+
   ship.reload = getRandomReload(firedWeaponKey);
-  updateRoster();
+  markRosterDirty();
   emitSparks(
     ship.x + Math.cos(ship.angle) * (ship.radius + 10),
     ship.y + Math.sin(ship.angle) * (ship.radius + 10),
@@ -848,9 +870,6 @@ function updateShips(dt) {
     }
   });
 
-  if (rosterDirty) {
-    updateRoster();
-  }
 }
 
 function updateBullets(dt) {
@@ -1015,39 +1034,7 @@ function maybeResolveWinner() {
 }
 
 function drawBackground() {
-  context.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  const gradient = context.createRadialGradient(
-    WORLD_WIDTH / 2,
-    WORLD_HEIGHT / 2,
-    140,
-    WORLD_WIDTH / 2,
-    WORLD_HEIGHT / 2,
-    WORLD_WIDTH * 0.75
-  );
-  gradient.addColorStop(0, "rgba(13, 34, 49, 0.75)");
-  gradient.addColorStop(1, "rgba(2, 7, 11, 0.98)");
-
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-  context.save();
-  context.strokeStyle = "rgba(126, 243, 197, 0.07)";
-  context.lineWidth = 1;
-  for (let x = WORLD_GRID; x < WORLD_WIDTH; x += WORLD_GRID) {
-    context.beginPath();
-    context.moveTo(x, 0);
-    context.lineTo(x, WORLD_HEIGHT);
-    context.stroke();
-  }
-
-  for (let y = WORLD_GRID; y < WORLD_HEIGHT; y += WORLD_GRID) {
-    context.beginPath();
-    context.moveTo(0, y);
-    context.lineTo(WORLD_WIDTH, y);
-    context.stroke();
-  }
-  context.restore();
+  context.drawImage(backgroundCanvas, 0, 0);
 }
 
 function drawPickupSymbol(shape, color) {
@@ -1183,6 +1170,44 @@ function drawPickupSymbol(shape, color) {
   context.stroke();
 }
 
+function renderStaticBackground() {
+  backgroundContext.clearRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  const gradient = backgroundContext.createRadialGradient(
+    WORLD_WIDTH / 2,
+    WORLD_HEIGHT / 2,
+    140,
+    WORLD_WIDTH / 2,
+    WORLD_HEIGHT / 2,
+    WORLD_WIDTH * 0.75
+  );
+  gradient.addColorStop(0, "rgba(13, 34, 49, 0.75)");
+  gradient.addColorStop(1, "rgba(2, 7, 11, 0.98)");
+
+  backgroundContext.fillStyle = gradient;
+  backgroundContext.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  backgroundContext.save();
+  backgroundContext.strokeStyle = "rgba(126, 243, 197, 0.07)";
+  backgroundContext.lineWidth = 1;
+
+  for (let x = WORLD_GRID; x < WORLD_WIDTH; x += WORLD_GRID) {
+    backgroundContext.beginPath();
+    backgroundContext.moveTo(x, 0);
+    backgroundContext.lineTo(x, WORLD_HEIGHT);
+    backgroundContext.stroke();
+  }
+
+  for (let y = WORLD_GRID; y < WORLD_HEIGHT; y += WORLD_GRID) {
+    backgroundContext.beginPath();
+    backgroundContext.moveTo(0, y);
+    backgroundContext.lineTo(WORLD_WIDTH, y);
+    backgroundContext.stroke();
+  }
+
+  backgroundContext.restore();
+}
+
 function drawShipHealthBar(ship) {
   const barWidth = 52;
   const barHeight = 7;
@@ -1223,7 +1248,7 @@ function drawShip(ship) {
   context.rotate(ship.angle);
 
   context.shadowColor = ship.color.glow;
-  context.shadowBlur = ship.flash ? 28 : 18;
+  context.shadowBlur = ENABLE_GLOW_EFFECTS ? (ship.flash ? 18 : 10) : 0;
 
   if (ship.speedBoostTimer > 0) {
     context.strokeStyle = "rgba(255, 230, 109, 0.7)";
@@ -1315,7 +1340,7 @@ function drawShip(ship) {
   // Engine glow
   context.fillStyle = ship.speedBoostTimer > 0 ? "#ffe66d" : weapon.color;
   context.shadowColor = ship.speedBoostTimer > 0 ? "#ffe66d" : weapon.color;
-  context.shadowBlur = ship.speedBoostTimer > 0 ? 20 : 12;
+  context.shadowBlur = ENABLE_GLOW_EFFECTS ? (ship.speedBoostTimer > 0 ? 12 : 6) : 0;
   [-14, -7, 7, 14].forEach((engineY) => {
     context.beginPath();
     context.roundRect(-33, engineY - 2, 5, 4, 999);
@@ -1323,7 +1348,7 @@ function drawShip(ship) {
   });
 
   // Cockpit
-  context.shadowBlur = ship.flash ? 28 : 18;
+  context.shadowBlur = ENABLE_GLOW_EFFECTS ? (ship.flash ? 18 : 10) : 0;
   context.fillStyle = "rgba(255, 255, 255, 0.9)";
   context.beginPath();
   context.ellipse(9, 0, 5, 3.2, 0, 0, Math.PI * 2);
@@ -1344,7 +1369,7 @@ function drawShip(ship) {
     context.strokeStyle = "rgba(126, 219, 255, 0.7)";
     context.lineWidth = 2;
     context.shadowColor = "rgba(126, 219, 255, 0.6)";
-    context.shadowBlur = 14;
+    context.shadowBlur = ENABLE_GLOW_EFFECTS ? 8 : 0;
     context.beginPath();
     context.arc(ship.x, ship.y, 20 + ship.shield * 1.5, 0, Math.PI * 2);
     context.stroke();
@@ -1368,7 +1393,7 @@ function drawPickups() {
     context.translate(pickup.x, pickup.y);
     context.rotate(pickup.spin);
     context.shadowColor = pickupConfig.color;
-    context.shadowBlur = 22;
+    context.shadowBlur = ENABLE_GLOW_EFFECTS ? 10 : 0;
 
     context.fillStyle = "rgba(3, 12, 18, 0.82)";
     context.strokeStyle = pickupConfig.color;
@@ -1389,7 +1414,7 @@ function drawMines() {
     context.save();
     context.translate(mine.x, mine.y);
     context.shadowColor = mine.color;
-    context.shadowBlur = armed ? 18 : 8;
+    context.shadowBlur = ENABLE_GLOW_EFFECTS ? (armed ? 10 : 4) : 0;
     context.strokeStyle = mine.color;
     context.fillStyle = armed ? "rgba(199, 255, 110, 0.18)" : "rgba(199, 255, 110, 0.08)";
     context.lineWidth = 2;
@@ -1413,7 +1438,7 @@ function drawBullets() {
     context.save();
     context.fillStyle = bullet.color;
     context.shadowColor = bullet.color;
-    context.shadowBlur = bullet.kind === "rocket" ? 20 : 12;
+    context.shadowBlur = ENABLE_GLOW_EFFECTS ? (bullet.kind === "rocket" ? 10 : 4) : 0;
     context.globalAlpha = lifeRatio;
     context.beginPath();
     context.arc(bullet.x, bullet.y, bullet.size, 0, Math.PI * 2);
@@ -1438,7 +1463,7 @@ function drawBeams() {
     context.globalAlpha = alpha;
     context.strokeStyle = beam.color;
     context.shadowColor = beam.color;
-    context.shadowBlur = 18;
+    context.shadowBlur = ENABLE_GLOW_EFFECTS ? 8 : 0;
     context.lineWidth = 4;
     context.beginPath();
     context.moveTo(beam.x1, beam.y1);
@@ -1468,7 +1493,7 @@ function drawWinnerHalo() {
   context.strokeStyle = winner.color.stroke;
   context.lineWidth = 3;
   context.shadowColor = winner.color.fill;
-  context.shadowBlur = 28;
+  context.shadowBlur = ENABLE_GLOW_EFFECTS ? 12 : 0;
   context.beginPath();
   context.arc(winner.x, winner.y, 28, 0, Math.PI * 2);
   context.stroke();
@@ -1498,6 +1523,9 @@ function animate(now) {
   updateSparks(dt);
   updateBeams(dt);
   maybeResolveWinner();
+  if (rosterDirty) {
+    updateRoster();
+  }
   render();
 
   animationFrame = window.requestAnimationFrame(animate);
@@ -1548,6 +1576,7 @@ bonusOptions.addEventListener("change", () => {
 
 window.addEventListener("resize", render);
 
+renderStaticBackground();
 createBonusOptionsUI();
 resetBattle(STARTING_NAMES);
 setStatus('Lista załogi gotowa. Kliknij "Uruchom losowanie".');

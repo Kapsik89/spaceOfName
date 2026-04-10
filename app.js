@@ -9,6 +9,8 @@ const winnerCard = document.getElementById("winner-card");
 const winnerName = document.getElementById("winner-name");
 const rosterGrid = document.getElementById("roster-grid");
 const bonusOptions = document.getElementById("bonus-options");
+const NAMES_STORAGE_KEY = "spaceOfName:names";
+const DEFAULT_NAMES_TEXT = namesInput.value.trim();
 
 const WORLD_WIDTH = 1920;
 const WORLD_HEIGHT = 1080;
@@ -28,6 +30,8 @@ const PICKUP_SPAWN_MAX = 4.2;
 const MAX_SPARKS = 160;
 const MAX_BULLETS = 90;
 const ENABLE_GLOW_EFFECTS = false;
+
+namesInput.value = loadSavedNamesText();
 const STARTING_NAMES = parseNames(namesInput.value);
 
 canvas.width = WORLD_WIDTH;
@@ -167,6 +171,23 @@ function parseNames(input) {
     .map((name) => name.trim())
     .filter(Boolean)
     .slice(0, 24);
+}
+
+function loadSavedNamesText() {
+  try {
+    const savedNames = window.localStorage.getItem(NAMES_STORAGE_KEY);
+    return savedNames && savedNames.trim() ? savedNames : DEFAULT_NAMES_TEXT;
+  } catch {
+    return DEFAULT_NAMES_TEXT;
+  }
+}
+
+function saveNamesText() {
+  try {
+    window.localStorage.setItem(NAMES_STORAGE_KEY, namesInput.value.trim());
+  } catch {
+    // Ignore storage errors and keep the app usable.
+  }
 }
 
 function colorFromName(name, index) {
@@ -1541,6 +1562,7 @@ function ensureAnimation() {
 
 function startBattle() {
   const names = parseNames(namesInput.value);
+  saveNamesText();
 
   if (names.length < 2) {
     setStatus("Podaj przynajmniej 2 imiona, żeby rozpocząć walkę.");
@@ -1554,6 +1576,7 @@ function startBattle() {
 
 startButton.addEventListener("click", startBattle);
 shuffleButton.addEventListener("click", () => {
+  saveNamesText();
   if (ships.length < 2) {
     startBattle();
     return;
@@ -1572,6 +1595,10 @@ bonusOptions.addEventListener("change", () => {
     setStatus(`Aktywne bonusy na mapie: ${enabledCount}.`);
   }
   render();
+});
+
+namesInput.addEventListener("input", () => {
+  saveNamesText();
 });
 
 window.addEventListener("resize", render);

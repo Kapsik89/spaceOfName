@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kosmiczne Losowanie</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="control-panel">
+        <div class="panel-copy">
+          <p class="eyebrow">Losowanie bez koła</p>
+          <h1>Kosmiczna plansza imion</h1>
+          <p class="lead">
+            Wpisz imiona, a każde dostanie swój kolor i statek. Statki będą
+            walczyć na planszy, aż zostanie tylko jeden zwycięzca.
+          </p>
+        </div>
+
+        <label class="input-label" for="names-input">Imiona, po jednym w linii</label>
+        <textarea id="names-input" spellcheck="false">Ania
+Bartek
+Celina
+Dawid
+Emilia
+Filip
+Gosia
+Hubert</textarea>
+
+        <div class="button-row">
+          <button id="start-button" type="button">Uruchom losowanie</button>
+          <button id="shuffle-button" type="button" class="ghost-button">
+            Przetasuj ponownie
+          </button>
+        </div>
+
+        <section class="bonus-panel">
+          <div class="bonus-panel-head">
+            <p class="status-label">Bonusy na mapie</p>
+            <p class="bonus-note">Odznacz to, czego nie chcesz losować</p>
+          </div>
+          <div id="bonus-options" class="bonus-options"></div>
+        </section>
+
+        <div class="status-card">
+          <p class="status-label">Status</p>
+          <p id="status-text">Gotowe do startu.</p>
+        </div>
+
+        <div class="winner-card" id="winner-card" hidden>
+          <p class="status-label">Zwycięzca</p>
+          <p id="winner-name"></p>
+        </div>
+      </aside>
+
+      <main class="stage-panel">
+        <section class="board-card">
+          <div class="board-heading">
+            <div>
+              <p class="eyebrow">Arena</p>
+              <h2>Widok z góry</h2>
+            </div>
+            <div class="legend-pill">
+              <span class="legend-dot"></span>
+              <span>Bronie, osłony i turbo pojawiają się na mapie</span>
+            </div>
+          </div>
+
+          <div class="canvas-frame">
+            <canvas id="battlefield" width="1920" height="1080"></canvas>
+            <div class="scanlines"></div>
+          </div>
+        </section>
+
+        <section class="roster-card">
+          <div class="board-heading compact">
+            <div>
+              <p class="eyebrow">Załoga</p>
+              <h2>Kolory i imiona</h2>
+            </div>
+            <p class="roster-note">Kolor pola = kolor statku, niżej broń i bonusy</p>
+          </div>
+          <div id="roster-grid" class="roster-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>

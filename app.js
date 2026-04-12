@@ -6,6 +6,7 @@ const startButton = document.getElementById("start-button");
 const shuffleButton = document.getElementById("shuffle-button");
 const saveBattleButton = document.getElementById("save-battle-button");
 const newBattleButton = document.getElementById("new-battle-button");
+const copyBattleLinkButton = document.getElementById("copy-battle-link-button");
 const selectAllButton = document.getElementById("select-all-button");
 const clearAllButton = document.getElementById("clear-all-button");
 const statusText = document.getElementById("status-text");
@@ -176,6 +177,7 @@ let rosterDirty = false;
 let participantsState = [];
 let battleStore = { activeBattleKey: null, battles: {} };
 let currentBattleKey = null;
+let isPublishingBattle = false;
 
 function parseNames(input) {
   return input
@@ -237,19 +239,30 @@ function getPathBattleKey() {
 }
 
 function updateBattleLink() {
+  const isPublished = currentBattleKey
+    ? battleStore.battles[currentBattleKey]?.published === true
+    : false;
+
   if (!currentBattleKey) {
     battleLink.href = window.location.origin;
     battleLink.textContent = "Zapisz bitwę, aby dostać link do udostępnienia";
+    copyBattleLinkButton.disabled = true;
     return;
   }
 
   const path = `/battle/${currentBattleKey}`;
   const fullUrl = `${window.location.origin}${path}`;
-  const isPublished = battleStore.battles[currentBattleKey]?.published === true;
   battleLink.href = fullUrl;
   battleLink.textContent = isPublished
     ? fullUrl
     : `${fullUrl} (szkic lokalny - kliknij "Zapisz bitwę")`;
+  copyBattleLinkButton.disabled = !isPublished;
+}
+
+function setBattlePublishState(isPublishing) {
+  isPublishingBattle = isPublishing;
+  saveBattleButton.disabled = isPublishing;
+  saveBattleButton.textContent = isPublishing ? "Zapisywanie..." : "Zapisz bitwę";
 }
 
 function setBattlePath(key) {
@@ -411,43 +424,48 @@ function saveCurrentBattle(options = {}) {
 async function publishCurrentBattle() {
   saveNamesText();
   saveCurrentBattle({ silent: true });
+  setBattlePublishState(true);
 
-  if (!currentBattleKey) {
-    currentBattleKey = generateBattleKey();
+  try {
+    if (!currentBattleKey) {
+      currentBattleKey = generateBattleKey();
+    }
+
+    const record = createBattleRecord();
+    const payload = {
+      key: currentBattleKey,
+      title: record.title,
+      config: {
+        namesText: record.namesText,
+        participants: record.participants,
+        enabledPickups: record.enabledPickups,
+      },
+    };
+
+    const existingRecord = battleStore.battles[currentBattleKey];
+    const remoteBattle = existingRecord?.published
+      ? await updateRemoteBattle(currentBattleKey, payload)
+      : await createRemoteBattle(payload);
+
+    currentBattleKey = remoteBattle.key;
+    battleStore.battles[currentBattleKey] = {
+      key: remoteBattle.key,
+      title: remoteBattle.title,
+      participants: remoteBattle.config.participants,
+      enabledPickups: remoteBattle.config.enabledPickups,
+      namesText: remoteBattle.config.namesText,
+      updatedAt: remoteBattle.updatedAt,
+      createdAt: remoteBattle.createdAt,
+      published: true,
+    };
+    battleStore.activeBattleKey = currentBattleKey;
+    persistBattleStore();
+    setBattlePath(currentBattleKey);
+    renderSavedBattles();
+    setStatus("Bitwa została zapisana i ma już link do udostępnienia.");
+  } finally {
+    setBattlePublishState(false);
   }
-
-  const record = createBattleRecord();
-  const payload = {
-    key: currentBattleKey,
-    title: record.title,
-    config: {
-      namesText: record.namesText,
-      participants: record.participants,
-      enabledPickups: record.enabledPickups,
-    },
-  };
-
-  const existingRecord = battleStore.battles[currentBattleKey];
-  const remoteBattle = existingRecord?.published
-    ? await updateRemoteBattle(currentBattleKey, payload)
-    : await createRemoteBattle(payload);
-
-  currentBattleKey = remoteBattle.key;
-  battleStore.battles[currentBattleKey] = {
-    key: remoteBattle.key,
-    title: remoteBattle.title,
-    participants: remoteBattle.config.participants,
-    enabledPickups: remoteBattle.config.enabledPickups,
-    namesText: remoteBattle.config.namesText,
-    updatedAt: remoteBattle.updatedAt,
-    createdAt: remoteBattle.createdAt,
-    published: true,
-  };
-  battleStore.activeBattleKey = currentBattleKey;
-  persistBattleStore();
-  setBattlePath(currentBattleKey);
-  renderSavedBattles();
-  setStatus("Bitwa została zapisana i ma już link do udostępnienia.");
 }
 
 async function loadBattleByKey(key) {
@@ -614,19 +632,29 @@ function renderParticipantsList() {
   participantsState.forEach((participant, index) => {
     const item = document.createElement("article");
     item.className = "participant-item";
+    item.classList.toggle("is-inactive", !participant.active);
 
     const main = document.createElement("div");
     main.className = "participant-main";
+
+    const title = document.createElement("div");
+    title.className = "participant-title";
+
+    const colorSwatch = document.createElement("span");
+    colorSwatch.className = "participant-color";
+    colorSwatch.style.background = colorFromName(participant.name, index).fill;
 
     const name = document.createElement("p");
     name.className = "participant-name";
     name.textContent = participant.name;
 
+    title.append(colorSwatch, name);
+
     const meta = document.createElement("p");
     meta.className = "participant-meta";
     meta.textContent = participant.active ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
 
-    main.append(name, meta);
+    main.append(title, meta);
 
     const toggle = document.createElement("label");
     toggle.className = "participant-toggle";
@@ -636,6 +664,7 @@ function renderParticipantsList() {
     input.checked = participant.active;
     input.addEventListener("change", () => {
       participantsState[index].active = input.checked;
+      item.classList.toggle("is-inactive", !input.checked);
       meta.textContent = input.checked ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
       saveCurrentBattle({ silent: true });
     });
@@ -1203,8 +1232,12 @@ function killShip(ship) {
   emitSparks(ship.x, ship.y, ship.color.fill, 24);
 }
 
-function getPickupPriority(ship, pickup, nearestEnemyDistance) {
-  const pickupDistance = distance(ship, pickup);
+function getPickupPriority(
+  ship,
+  pickup,
+  nearestEnemyDistance,
+  pickupDistance = distance(ship, pickup)
+) {
   let score = 220 - pickupDistance * 0.72;
 
   if (pickup.pickupKey === "repair") {
@@ -1232,27 +1265,38 @@ function buildPickupClaims(livingShips) {
   const claims = new Map();
 
   pickups.forEach((pickup) => {
-    const nearestShips = [...livingShips]
-      .sort((left, right) => distance(left, pickup) - distance(right, pickup))
-      .slice(0, 2);
+    let nearestShip = null;
+    let secondNearestShip = null;
+    let nearestDistance = Infinity;
+    let secondNearestDistance = Infinity;
 
-    claims.set(
-      pickup.id,
-      new Set(nearestShips.map((ship) => ship.id))
-    );
+    for (const ship of livingShips) {
+      if (!ship.alive) continue;
+      const shipDistance = distance(ship, pickup);
+
+      if (shipDistance < nearestDistance) {
+        secondNearestShip = nearestShip;
+        secondNearestDistance = nearestDistance;
+        nearestShip = ship;
+        nearestDistance = shipDistance;
+      } else if (shipDistance < secondNearestDistance) {
+        secondNearestShip = ship;
+        secondNearestDistance = shipDistance;
+      }
+    }
+
+    const pickupClaimants = new Set();
+    if (nearestShip) pickupClaimants.add(nearestShip.id);
+    if (secondNearestShip) pickupClaimants.add(secondNearestShip.id);
+    claims.set(pickup.id, pickupClaimants);
   });
 
   return claims;
 }
 
-function updateShips(dt) {
-  const livingShips = getLivingShips();
-  const pickupClaims = buildPickupClaims(livingShips);
-  let rosterDirty = false;
-
+function updateShips(dt, livingShips, pickupClaims) {
   livingShips.forEach((ship) => {
-    const enemies = livingShips.filter((candidate) => candidate.id !== ship.id);
-    if (!enemies.length) return;
+    if (!ship.alive) return;
 
     ship.flash = Math.max(0, ship.flash - dt * 4);
     ship.reload -= dt;
@@ -1262,20 +1306,23 @@ function updateShips(dt) {
     if (ship.speedBoostTimer > 0) {
       ship.speedBoostTimer = Math.max(0, ship.speedBoostTimer - dt);
       if (ship.speedBoostTimer === 0) {
-        rosterDirty = true;
+        markRosterDirty();
       }
     }
 
-    let target = enemies[0];
-    let nearestDistance = distance(ship, target);
+    let target = null;
+    let nearestDistance = Infinity;
 
-    enemies.forEach((enemy) => {
+    for (const enemy of livingShips) {
+      if (!enemy.alive || enemy.id === ship.id) continue;
       const currentDistance = distance(ship, enemy);
       if (currentDistance < nearestDistance) {
         nearestDistance = currentDistance;
         target = enemy;
       }
-    });
+    }
+
+    if (!target) return;
 
     if (ship.retargetTimer <= 0) {
       const aimOffset = randomBetween(-0.45, 0.45);
@@ -1286,9 +1333,10 @@ function updateShips(dt) {
     let bestPickup = null;
     pickups.forEach((pickup) => {
       if (!pickupClaims.get(pickup.id)?.has(ship.id)) return;
-      const score = getPickupPriority(ship, pickup, nearestDistance);
+      const pickupDistance = distance(ship, pickup);
+      const score = getPickupPriority(ship, pickup, nearestDistance, pickupDistance);
       if (!bestPickup || score > bestPickup.score) {
-        bestPickup = { pickup, score, distance: distance(ship, pickup) };
+        bestPickup = { pickup, score, distance: pickupDistance };
       }
     });
 
@@ -1442,10 +1490,8 @@ function updateMines(dt) {
   });
 }
 
-function updatePickups(dt) {
-  const livingShips = getLivingShips();
+function updatePickups(dt, livingShips, pickupClaims) {
   if (livingShips.length <= 1 || winner) return;
-  const pickupClaims = buildPickupClaims(livingShips);
 
   pickupSpawnTimer -= dt;
   if (pickupSpawnTimer <= 0 && pickups.length < MAX_PICKUPS) {
@@ -1457,14 +1503,21 @@ function updatePickups(dt) {
     pickup.pulse += dt * 2.2;
     pickup.spin += dt * 0.8;
 
-    const eligibleShips = livingShips.filter((ship) => pickupClaims.get(pickup.id)?.has(ship.id));
-    const magnetTarget = eligibleShips.find(
-      (ship) => distance(ship, pickup) < PICKUP_MAGNET_RADIUS
-    );
+    let magnetTarget = null;
+    let magnetDistance = Infinity;
+
+    for (const ship of livingShips) {
+      if (!ship.alive || !pickupClaims.get(pickup.id)?.has(ship.id)) continue;
+      const shipDistance = distance(ship, pickup);
+      if (shipDistance < PICKUP_MAGNET_RADIUS && shipDistance < magnetDistance) {
+        magnetTarget = ship;
+        magnetDistance = shipDistance;
+      }
+    }
 
     if (!magnetTarget) return;
 
-    const distanceToShip = distance(magnetTarget, pickup);
+    const distanceToShip = magnetDistance;
     if (distanceToShip < 1) return;
 
     const step = Math.min(PICKUP_MAGNET_SPEED * dt, distanceToShip);
@@ -1473,9 +1526,15 @@ function updatePickups(dt) {
   });
 
   pickups = pickups.filter((pickup) => {
-    const collector = livingShips.find(
-      (ship) => distance(ship, pickup) < ship.radius + pickup.radius + PICKUP_COLLECT_MARGIN
-    );
+    let collector = null;
+
+    for (const ship of livingShips) {
+      if (!ship.alive) continue;
+      if (distance(ship, pickup) < ship.radius + pickup.radius + PICKUP_COLLECT_MARGIN) {
+        collector = ship;
+        break;
+      }
+    }
 
     if (!collector) return true;
 
@@ -2000,11 +2059,13 @@ function animate(now) {
   if (!lastTick) lastTick = now;
   const dt = Math.min((now - lastTick) / 1000, 0.033);
   lastTick = now;
+  const livingShips = getLivingShips();
+  const pickupClaims = buildPickupClaims(livingShips);
 
-  updateShips(dt);
+  updateShips(dt, livingShips, pickupClaims);
   updateBullets(dt);
   updateMines(dt);
-  updatePickups(dt);
+  updatePickups(dt, livingShips, pickupClaims);
   updateSparks(dt);
   updateBeams(dt);
   maybeResolveWinner();
@@ -2071,10 +2132,28 @@ namesInput.addEventListener("input", () => {
 });
 
 saveBattleButton.addEventListener("click", async () => {
+  if (isPublishingBattle) return;
   try {
     await publishCurrentBattle();
   } catch (error) {
     setStatus(`Nie udało się zapisać bitwy w chmurze: ${error.message}`);
+  }
+});
+
+copyBattleLinkButton.addEventListener("click", async () => {
+  const isPublished = currentBattleKey
+    ? battleStore.battles[currentBattleKey]?.published === true
+    : false;
+  if (!currentBattleKey || !isPublished) {
+    setStatus('Najpierw kliknij "Zapisz bitwę", żeby dostać działający link do wysłania.');
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(`${window.location.origin}/battle/${currentBattleKey}`);
+    setStatus("Link do bitwy skopiowany do schowka.");
+  } catch {
+    setStatus("Nie udało się skopiować linku. Skopiuj go ręcznie z pola poniżej.");
   }
 });
 

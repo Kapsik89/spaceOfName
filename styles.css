@@ -229,6 +229,13 @@ button:active {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.battle-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
 .battle-link-label {
   margin: 0 0 6px;
   font-size: 0.76rem;
@@ -274,11 +281,30 @@ button:active {
   min-width: 0;
 }
 
+.participant-item.is-inactive {
+  opacity: 0.56;
+  background: rgba(255, 255, 255, 0.025);
+}
+
 .saved-battle-name,
 .participant-name {
   margin: 0;
   font-size: 0.92rem;
   font-weight: 800;
+}
+
+.participant-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.participant-color {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
 }
 
 .saved-battle-meta,
@@ -523,6 +549,7 @@ canvas {
     grid-template-columns: 1fr;
   }
 
+  .battle-link-row,
   .battle-actions,
   .participants-actions {
     grid-template-columns: 1fr;

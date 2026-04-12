@@ -550,6 +550,7 @@ function deleteBattle(key) {
 }
 
 function renderSavedBattles() {
+  if (!savedBattles) return;
   savedBattles.innerHTML = "";
   const battleEntries = Object.values(battleStore.battles).sort(
     (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)

@@ -18,6 +18,7 @@ const savedBattles = document.getElementById("saved-battles");
 const battleLink = document.getElementById("battle-link");
 const NAMES_STORAGE_KEY = "spaceOfName:names";
 const BATTLES_STORAGE_KEY = "spaceOfName:battles";
+const BATTLES_API_BASE = "/api/battles";
 const DEFAULT_NAMES_TEXT = namesInput.value.trim();
 
 const WORLD_WIDTH = 1920;
@@ -228,18 +229,31 @@ function persistBattleStore() {
 
 function getPathBattleKey() {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
-  return path || null;
+  if (!path) return null;
+  if (path.startsWith("battle/")) {
+    return path.slice("battle/".length) || null;
+  }
+  return path;
 }
 
 function updateBattleLink() {
-  const path = currentBattleKey ? `/${currentBattleKey}` : "/";
+  if (!currentBattleKey) {
+    battleLink.href = window.location.origin;
+    battleLink.textContent = "Zapisz bitwę, aby dostać link do udostępnienia";
+    return;
+  }
+
+  const path = `/battle/${currentBattleKey}`;
   const fullUrl = `${window.location.origin}${path}`;
+  const isPublished = battleStore.battles[currentBattleKey]?.published === true;
   battleLink.href = fullUrl;
-  battleLink.textContent = fullUrl;
+  battleLink.textContent = isPublished
+    ? fullUrl
+    : `${fullUrl} (szkic lokalny - kliknij "Zapisz bitwę")`;
 }
 
 function setBattlePath(key) {
-  const path = key ? `/${key}` : "/";
+  const path = key ? `/battle/${key}` : "/";
   if (window.location.pathname !== path) {
     window.history.replaceState({}, "", path);
   }
@@ -252,6 +266,46 @@ function generateBattleKey() {
   }
 
   return `battle-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+}
+
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {}),
+    },
+    ...options,
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `Request failed with status ${response.status}`);
+  }
+
+  return data;
+}
+
+async function createRemoteBattle(payload) {
+  const data = await fetchJson(BATTLES_API_BASE, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return data.battle;
+}
+
+async function updateRemoteBattle(key, payload) {
+  const data = await fetchJson(`${BATTLES_API_BASE}/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+
+  return data.battle;
+}
+
+async function getRemoteBattle(key) {
+  const data = await fetchJson(`${BATTLES_API_BASE}/${encodeURIComponent(key)}`);
+  return data.battle;
 }
 
 function deriveBattleTitle(participants) {
@@ -296,6 +350,16 @@ function getCurrentBattleConfig() {
   };
 }
 
+function createBattleRecord(overrides = {}) {
+  const config = getCurrentBattleConfig();
+  return {
+    key: currentBattleKey,
+    title: deriveBattleTitle(config.participants),
+    ...config,
+    ...overrides,
+  };
+}
+
 function setEnabledPickups(enabledPickupKeys) {
   const enabledSet = new Set(enabledPickupKeys);
   bonusOptions.querySelectorAll('input[name="pickup-option"]').forEach((input) => {
@@ -331,8 +395,9 @@ function saveCurrentBattle(options = {}) {
     currentBattleKey = generateBattleKey();
   }
 
-  const config = getCurrentBattleConfig();
-  battleStore.battles[currentBattleKey] = config;
+  battleStore.battles[currentBattleKey] = createBattleRecord({
+    published: battleStore.battles[currentBattleKey]?.published ?? false,
+  });
   battleStore.activeBattleKey = currentBattleKey;
   persistBattleStore();
   setBattlePath(currentBattleKey);
@@ -343,29 +408,95 @@ function saveCurrentBattle(options = {}) {
   }
 }
 
-function loadBattleByKey(key) {
-  currentBattleKey = key;
-  const existingBattle = battleStore.battles[key];
+async function publishCurrentBattle() {
+  saveNamesText();
+  saveCurrentBattle({ silent: true });
 
-  if (existingBattle) {
-    applyBattleConfig(existingBattle);
-    battleStore.activeBattleKey = key;
-    persistBattleStore();
-    setBattlePath(key);
-    renderSavedBattles();
-    setStatus(`Wczytano zapisaną bitwę.`);
-    return;
+  if (!currentBattleKey) {
+    currentBattleKey = generateBattleKey();
   }
 
-  applyBattleConfig({
-    key,
-    participants: buildParticipantsFromText(loadSavedNamesText()),
-    enabledPickups: PICKUP_OPTION_ORDER,
-    namesText: loadSavedNamesText(),
-  });
-  setBattlePath(key);
+  const record = createBattleRecord();
+  const payload = {
+    key: currentBattleKey,
+    title: record.title,
+    config: {
+      namesText: record.namesText,
+      participants: record.participants,
+      enabledPickups: record.enabledPickups,
+    },
+  };
+
+  const existingRecord = battleStore.battles[currentBattleKey];
+  const remoteBattle = existingRecord?.published
+    ? await updateRemoteBattle(currentBattleKey, payload)
+    : await createRemoteBattle(payload);
+
+  currentBattleKey = remoteBattle.key;
+  battleStore.battles[currentBattleKey] = {
+    key: remoteBattle.key,
+    title: remoteBattle.title,
+    participants: remoteBattle.config.participants,
+    enabledPickups: remoteBattle.config.enabledPickups,
+    namesText: remoteBattle.config.namesText,
+    updatedAt: remoteBattle.updatedAt,
+    createdAt: remoteBattle.createdAt,
+    published: true,
+  };
+  battleStore.activeBattleKey = currentBattleKey;
+  persistBattleStore();
+  setBattlePath(currentBattleKey);
   renderSavedBattles();
-  setStatus("Ten link nie jest zapisany w tej przeglądarce. Możesz go użyć jako nowej bitwy.");
+  setStatus("Bitwa została zapisana i ma już link do udostępnienia.");
+}
+
+async function loadBattleByKey(key) {
+  currentBattleKey = key;
+  const existingBattle = battleStore.battles[key] ?? null;
+
+  try {
+    const remoteBattle = await getRemoteBattle(key);
+    const localRecord = {
+      key: remoteBattle.key,
+      title: remoteBattle.title,
+      participants: remoteBattle.config.participants,
+      enabledPickups: remoteBattle.config.enabledPickups,
+      namesText: remoteBattle.config.namesText,
+      updatedAt: remoteBattle.updatedAt,
+      createdAt: remoteBattle.createdAt,
+      published: true,
+    };
+
+    battleStore.battles[key] = localRecord;
+    battleStore.activeBattleKey = key;
+    persistBattleStore();
+    applyBattleConfig(localRecord);
+    setBattlePath(key);
+    renderSavedBattles();
+    setStatus("Wczytano zapisaną bitwę z chmury.");
+    return true;
+  } catch (error) {
+    if (existingBattle) {
+      applyBattleConfig(existingBattle);
+      battleStore.activeBattleKey = key;
+      persistBattleStore();
+      setBattlePath(key);
+      renderSavedBattles();
+      setStatus("Nie udało się pobrać bitwy z chmury. Wczytano lokalną kopię.");
+      return true;
+    }
+
+    applyBattleConfig({
+      key,
+      participants: buildParticipantsFromText(loadSavedNamesText()),
+      enabledPickups: PICKUP_OPTION_ORDER,
+      namesText: loadSavedNamesText(),
+    });
+    setBattlePath(key);
+    renderSavedBattles();
+    setStatus("Nie znaleziono tej bitwy w chmurze. Możesz zapisać nową pod tym linkiem.");
+    return false;
+  }
 }
 
 function deleteBattle(key) {
@@ -431,7 +562,8 @@ function renderSavedBattles() {
     const meta = document.createElement("p");
     meta.className = "saved-battle-meta";
     const activeCount = (battle.participants ?? []).filter((participant) => participant.active).length;
-    meta.textContent = `${activeCount} aktywnych | /${battle.key}`;
+    const publishLabel = battle.published ? "udostępnialna" : "lokalna";
+    meta.textContent = `${activeCount} aktywnych | ${publishLabel} | /battle/${battle.key}`;
 
     main.append(title, meta);
 
@@ -442,8 +574,8 @@ function renderSavedBattles() {
     openButton.type = "button";
     openButton.className = "ghost-button tiny-button";
     openButton.textContent = "Otwórz";
-    openButton.addEventListener("click", () => {
-      loadBattleByKey(battle.key);
+    openButton.addEventListener("click", async () => {
+      await loadBattleByKey(battle.key);
       resetBattle(getActiveParticipantNames());
       render();
     });
@@ -451,7 +583,7 @@ function renderSavedBattles() {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "ghost-button tiny-button";
-    deleteButton.textContent = "Usuń";
+    deleteButton.textContent = "Usuń z listy";
     deleteButton.addEventListener("click", () => {
       deleteBattle(battle.key);
     });
@@ -1938,14 +2070,18 @@ namesInput.addEventListener("input", () => {
   saveCurrentBattle({ silent: true });
 });
 
-saveBattleButton.addEventListener("click", () => {
-  saveCurrentBattle();
+saveBattleButton.addEventListener("click", async () => {
+  try {
+    await publishCurrentBattle();
+  } catch (error) {
+    setStatus(`Nie udało się zapisać bitwy w chmurze: ${error.message}`);
+  }
 });
 
 newBattleButton.addEventListener("click", () => {
   currentBattleKey = generateBattleKey();
   saveCurrentBattle({ silent: true });
-  setStatus("Utworzono nową bitwę z nowym linkiem.");
+  setStatus("Utworzono nową lokalną bitwę. Kliknij „Zapisz bitwę”, aby dostać link.");
 });
 
 selectAllButton.addEventListener("click", () => {
@@ -1966,26 +2102,32 @@ clearAllButton.addEventListener("click", () => {
 
 window.addEventListener("resize", render);
 
-renderStaticBackground();
-createBonusOptionsUI();
-battleStore = loadBattleStore();
-const pathBattleKey = getPathBattleKey();
+async function bootstrap() {
+  renderStaticBackground();
+  createBonusOptionsUI();
+  battleStore = loadBattleStore();
+  const pathBattleKey = getPathBattleKey();
 
-if (pathBattleKey) {
-  loadBattleByKey(pathBattleKey);
-} else if (battleStore.activeBattleKey && battleStore.battles[battleStore.activeBattleKey]) {
-  loadBattleByKey(battleStore.activeBattleKey);
-} else {
-  currentBattleKey = generateBattleKey();
-  applyBattleConfig({
-    key: currentBattleKey,
-    participants: buildParticipantsFromText(loadSavedNamesText()),
-    enabledPickups: PICKUP_OPTION_ORDER,
-    namesText: loadSavedNamesText(),
-  });
-  saveCurrentBattle({ silent: true });
+  if (pathBattleKey) {
+    await loadBattleByKey(pathBattleKey);
+  } else if (battleStore.activeBattleKey && battleStore.battles[battleStore.activeBattleKey]) {
+    await loadBattleByKey(battleStore.activeBattleKey);
+  } else {
+    currentBattleKey = generateBattleKey();
+    applyBattleConfig({
+      key: currentBattleKey,
+      participants: buildParticipantsFromText(loadSavedNamesText()),
+      enabledPickups: PICKUP_OPTION_ORDER,
+      namesText: loadSavedNamesText(),
+    });
+    saveCurrentBattle({ silent: true });
+  }
+
+  resetBattle(getActiveParticipantNames());
+  if (!statusText.textContent || statusText.textContent === "Gotowe do startu.") {
+    setStatus('Lista załogi gotowa. Kliknij "Uruchom losowanie".');
+  }
+  render();
 }
 
-resetBattle(getActiveParticipantNames());
-setStatus('Lista załogi gotowa. Kliknij "Uruchom losowanie".');
-render();
+bootstrap();

@@ -4,12 +4,20 @@ const context = canvas.getContext("2d");
 const namesInput = document.getElementById("names-input");
 const startButton = document.getElementById("start-button");
 const shuffleButton = document.getElementById("shuffle-button");
+const saveBattleButton = document.getElementById("save-battle-button");
+const newBattleButton = document.getElementById("new-battle-button");
+const selectAllButton = document.getElementById("select-all-button");
+const clearAllButton = document.getElementById("clear-all-button");
 const statusText = document.getElementById("status-text");
 const winnerCard = document.getElementById("winner-card");
 const winnerName = document.getElementById("winner-name");
 const rosterGrid = document.getElementById("roster-grid");
 const bonusOptions = document.getElementById("bonus-options");
+const participantsList = document.getElementById("participants-list");
+const savedBattles = document.getElementById("saved-battles");
+const battleLink = document.getElementById("battle-link");
 const NAMES_STORAGE_KEY = "spaceOfName:names";
+const BATTLES_STORAGE_KEY = "spaceOfName:battles";
 const DEFAULT_NAMES_TEXT = namesInput.value.trim();
 
 const WORLD_WIDTH = 1920;
@@ -164,6 +172,9 @@ let lastTick = 0;
 let rosterTiles = new Map();
 let pickupSpawnTimer = randomBetween(PICKUP_SPAWN_MIN, PICKUP_SPAWN_MAX);
 let rosterDirty = false;
+let participantsState = [];
+let battleStore = { activeBattleKey: null, battles: {} };
+let currentBattleKey = null;
 
 function parseNames(input) {
   return input
@@ -188,6 +199,322 @@ function saveNamesText() {
   } catch {
     // Ignore storage errors and keep the app usable.
   }
+}
+
+function loadBattleStore() {
+  try {
+    const rawStore = window.localStorage.getItem(BATTLES_STORAGE_KEY);
+    if (!rawStore) {
+      return { activeBattleKey: null, battles: {} };
+    }
+
+    const parsedStore = JSON.parse(rawStore);
+    return {
+      activeBattleKey: parsedStore?.activeBattleKey ?? null,
+      battles: parsedStore?.battles ?? {},
+    };
+  } catch {
+    return { activeBattleKey: null, battles: {} };
+  }
+}
+
+function persistBattleStore() {
+  try {
+    window.localStorage.setItem(BATTLES_STORAGE_KEY, JSON.stringify(battleStore));
+  } catch {
+    // Ignore storage errors and keep the app usable.
+  }
+}
+
+function getPathBattleKey() {
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, "");
+  return path || null;
+}
+
+function updateBattleLink() {
+  const path = currentBattleKey ? `/${currentBattleKey}` : "/";
+  const fullUrl = `${window.location.origin}${path}`;
+  battleLink.href = fullUrl;
+  battleLink.textContent = fullUrl;
+}
+
+function setBattlePath(key) {
+  const path = key ? `/${key}` : "/";
+  if (window.location.pathname !== path) {
+    window.history.replaceState({}, "", path);
+  }
+  updateBattleLink();
+}
+
+function generateBattleKey() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `battle-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+}
+
+function deriveBattleTitle(participants) {
+  const activeNames = participants.filter((participant) => participant.active).map((participant) => participant.name);
+  if (!activeNames.length) return "Pusta bitwa";
+  if (activeNames.length <= 3) return activeNames.join(", ");
+  return `${activeNames.slice(0, 3).join(", ")} +${activeNames.length - 3}`;
+}
+
+function buildParticipantsFromText(text, previousParticipants = []) {
+  const previousPool = previousParticipants.map((participant) => ({ ...participant, used: false }));
+
+  return parseNames(text).map((name) => {
+    const exactMatch = previousPool.find(
+      (participant) => !participant.used && participant.name === name
+    );
+
+    if (exactMatch) {
+      exactMatch.used = true;
+      return { name, active: exactMatch.active };
+    }
+
+    return { name, active: true };
+  });
+}
+
+function syncParticipantsFromText() {
+  participantsState = buildParticipantsFromText(namesInput.value, participantsState);
+  renderParticipantsList();
+}
+
+function getCurrentBattleConfig() {
+  return {
+    key: currentBattleKey,
+    participants: participantsState.map((participant) => ({
+      name: participant.name,
+      active: participant.active,
+    })),
+    enabledPickups: getEnabledPickupKeys(),
+    namesText: namesInput.value.trim(),
+    updatedAt: Date.now(),
+  };
+}
+
+function setEnabledPickups(enabledPickupKeys) {
+  const enabledSet = new Set(enabledPickupKeys);
+  bonusOptions.querySelectorAll('input[name="pickup-option"]').forEach((input) => {
+    input.checked = enabledSet.has(input.value);
+  });
+  syncPickupsWithOptions();
+}
+
+function applyBattleConfig(config) {
+  const namesText = config?.namesText?.trim() || config?.participants?.map((participant) => participant.name).join("\n") || DEFAULT_NAMES_TEXT;
+  namesInput.value = namesText;
+  participantsState = config?.participants?.length
+    ? config.participants.map((participant) => ({
+        name: participant.name,
+        active: participant.active !== false,
+      }))
+    : buildParticipantsFromText(namesText);
+
+  const activeNames = new Set(participantsState.map((participant) => participant.name));
+  participantsState = participantsState.filter((participant) => activeNames.has(participant.name));
+  saveNamesText();
+  renderParticipantsList();
+
+  const enabledPickups = config?.enabledPickups?.length
+    ? config.enabledPickups
+    : PICKUP_OPTION_ORDER;
+  setEnabledPickups(enabledPickups);
+}
+
+function saveCurrentBattle(options = {}) {
+  const { forceNewKey = false, silent = false } = options;
+  if (forceNewKey || !currentBattleKey) {
+    currentBattleKey = generateBattleKey();
+  }
+
+  const config = getCurrentBattleConfig();
+  battleStore.battles[currentBattleKey] = config;
+  battleStore.activeBattleKey = currentBattleKey;
+  persistBattleStore();
+  setBattlePath(currentBattleKey);
+  renderSavedBattles();
+
+  if (!silent) {
+    setStatus(`Bitwa zapisana pod kluczem: ${currentBattleKey.slice(0, 8)}...`);
+  }
+}
+
+function loadBattleByKey(key) {
+  currentBattleKey = key;
+  const existingBattle = battleStore.battles[key];
+
+  if (existingBattle) {
+    applyBattleConfig(existingBattle);
+    battleStore.activeBattleKey = key;
+    persistBattleStore();
+    setBattlePath(key);
+    renderSavedBattles();
+    setStatus(`Wczytano zapisaną bitwę.`);
+    return;
+  }
+
+  applyBattleConfig({
+    key,
+    participants: buildParticipantsFromText(loadSavedNamesText()),
+    enabledPickups: PICKUP_OPTION_ORDER,
+    namesText: loadSavedNamesText(),
+  });
+  setBattlePath(key);
+  renderSavedBattles();
+  setStatus("Ten link nie jest zapisany w tej przeglądarce. Możesz go użyć jako nowej bitwy.");
+}
+
+function deleteBattle(key) {
+  delete battleStore.battles[key];
+
+  if (battleStore.activeBattleKey === key) {
+    battleStore.activeBattleKey = null;
+  }
+
+  const remainingKeys = Object.keys(battleStore.battles);
+  persistBattleStore();
+
+  if (currentBattleKey === key) {
+    currentBattleKey = remainingKeys[0] ?? null;
+    if (currentBattleKey) {
+      loadBattleByKey(currentBattleKey);
+    } else {
+      currentBattleKey = generateBattleKey();
+      applyBattleConfig({
+        key: currentBattleKey,
+        participants: buildParticipantsFromText(loadSavedNamesText()),
+        enabledPickups: PICKUP_OPTION_ORDER,
+        namesText: loadSavedNamesText(),
+      });
+      setBattlePath(currentBattleKey);
+      renderSavedBattles();
+      setStatus("Usunięto bitwę. Utworzono nową lokalną konfigurację.");
+    }
+    return;
+  }
+
+  renderSavedBattles();
+}
+
+function renderSavedBattles() {
+  savedBattles.innerHTML = "";
+  const battleEntries = Object.values(battleStore.battles).sort(
+    (left, right) => (right.updatedAt ?? 0) - (left.updatedAt ?? 0)
+  );
+
+  if (!battleEntries.length) {
+    const emptyState = document.createElement("p");
+    emptyState.className = "bonus-note";
+    emptyState.textContent = "Brak zapisanych bitew w tej przeglądarce.";
+    savedBattles.appendChild(emptyState);
+    return;
+  }
+
+  battleEntries.forEach((battle) => {
+    const item = document.createElement("article");
+    item.className = "saved-battle-item";
+    if (battle.key === currentBattleKey) {
+      item.classList.add("is-active");
+    }
+
+    const main = document.createElement("div");
+    main.className = "saved-battle-main";
+
+    const title = document.createElement("p");
+    title.className = "saved-battle-name";
+    title.textContent = deriveBattleTitle(battle.participants ?? []);
+
+    const meta = document.createElement("p");
+    meta.className = "saved-battle-meta";
+    const activeCount = (battle.participants ?? []).filter((participant) => participant.active).length;
+    meta.textContent = `${activeCount} aktywnych | /${battle.key}`;
+
+    main.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "saved-battle-actions";
+
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "ghost-button tiny-button";
+    openButton.textContent = "Otwórz";
+    openButton.addEventListener("click", () => {
+      loadBattleByKey(battle.key);
+      resetBattle(getActiveParticipantNames());
+      render();
+    });
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "ghost-button tiny-button";
+    deleteButton.textContent = "Usuń";
+    deleteButton.addEventListener("click", () => {
+      deleteBattle(battle.key);
+    });
+
+    actions.append(openButton, deleteButton);
+    item.append(main, actions);
+    savedBattles.appendChild(item);
+  });
+}
+
+function getActiveParticipantNames() {
+  return participantsState
+    .filter((participant) => participant.active)
+    .map((participant) => participant.name);
+}
+
+function renderParticipantsList() {
+  participantsList.innerHTML = "";
+
+  if (!participantsState.length) {
+    const emptyState = document.createElement("p");
+    emptyState.className = "bonus-note";
+    emptyState.textContent = "Dodaj imiona w polu powyżej.";
+    participantsList.appendChild(emptyState);
+    return;
+  }
+
+  participantsState.forEach((participant, index) => {
+    const item = document.createElement("article");
+    item.className = "participant-item";
+
+    const main = document.createElement("div");
+    main.className = "participant-main";
+
+    const name = document.createElement("p");
+    name.className = "participant-name";
+    name.textContent = participant.name;
+
+    const meta = document.createElement("p");
+    meta.className = "participant-meta";
+    meta.textContent = participant.active ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
+
+    main.append(name, meta);
+
+    const toggle = document.createElement("label");
+    toggle.className = "participant-toggle";
+
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = participant.active;
+    input.addEventListener("change", () => {
+      participantsState[index].active = input.checked;
+      meta.textContent = input.checked ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
+      saveCurrentBattle({ silent: true });
+    });
+
+    const text = document.createElement("span");
+    text.textContent = "Gra";
+
+    toggle.append(input, text);
+    item.append(main, toggle);
+    participantsList.appendChild(item);
+  });
 }
 
 function colorFromName(name, index) {
@@ -434,7 +761,8 @@ function createShip(name, index, entrants) {
 }
 
 function resetBattle(customNames) {
-  const names = customNames.length ? customNames : STARTING_NAMES;
+  const activeParticipants = getActiveParticipantNames();
+  const names = customNames.length ? customNames : activeParticipants;
   ships = [];
   bullets = [];
   sparks = [];
@@ -450,7 +778,11 @@ function resetBattle(customNames) {
 
   buildRoster(ships);
   updateRoster();
-  setStatus(`Walka trwa. Na planszy: ${ships.length} statków.`);
+  if (ships.length) {
+    setStatus(`Walka trwa. Na planszy: ${ships.length} statków.`);
+  } else {
+    setStatus("Ta bitwa nie ma jeszcze aktywnych uczestników.");
+  }
 }
 
 function getLivingShips() {
@@ -1561,11 +1893,12 @@ function ensureAnimation() {
 }
 
 function startBattle() {
-  const names = parseNames(namesInput.value);
+  const names = getActiveParticipantNames();
   saveNamesText();
+  saveCurrentBattle({ silent: true });
 
   if (names.length < 2) {
-    setStatus("Podaj przynajmniej 2 imiona, żeby rozpocząć walkę.");
+    setStatus("Zaznacz przynajmniej 2 osoby, żeby rozpocząć walkę.");
     clearWinner();
     return;
   }
@@ -1577,17 +1910,19 @@ function startBattle() {
 startButton.addEventListener("click", startBattle);
 shuffleButton.addEventListener("click", () => {
   saveNamesText();
+  saveCurrentBattle({ silent: true });
   if (ships.length < 2) {
     startBattle();
     return;
   }
 
-  resetBattle(parseNames(namesInput.value));
+  resetBattle(getActiveParticipantNames());
   ensureAnimation();
 });
 
 bonusOptions.addEventListener("change", () => {
   syncPickupsWithOptions();
+  saveCurrentBattle({ silent: true });
   const enabledCount = getEnabledPickupKeys().length;
   if (enabledCount === 0) {
     setStatus("Wszystkie bonusy na mapie są wyłączone.");
@@ -1599,12 +1934,58 @@ bonusOptions.addEventListener("change", () => {
 
 namesInput.addEventListener("input", () => {
   saveNamesText();
+  syncParticipantsFromText();
+  saveCurrentBattle({ silent: true });
+});
+
+saveBattleButton.addEventListener("click", () => {
+  saveCurrentBattle();
+});
+
+newBattleButton.addEventListener("click", () => {
+  currentBattleKey = generateBattleKey();
+  saveCurrentBattle({ silent: true });
+  setStatus("Utworzono nową bitwę z nowym linkiem.");
+});
+
+selectAllButton.addEventListener("click", () => {
+  participantsState.forEach((participant) => {
+    participant.active = true;
+  });
+  renderParticipantsList();
+  saveCurrentBattle({ silent: true });
+});
+
+clearAllButton.addEventListener("click", () => {
+  participantsState.forEach((participant) => {
+    participant.active = false;
+  });
+  renderParticipantsList();
+  saveCurrentBattle({ silent: true });
 });
 
 window.addEventListener("resize", render);
 
 renderStaticBackground();
 createBonusOptionsUI();
-resetBattle(STARTING_NAMES);
+battleStore = loadBattleStore();
+const pathBattleKey = getPathBattleKey();
+
+if (pathBattleKey) {
+  loadBattleByKey(pathBattleKey);
+} else if (battleStore.activeBattleKey && battleStore.battles[battleStore.activeBattleKey]) {
+  loadBattleByKey(battleStore.activeBattleKey);
+} else {
+  currentBattleKey = generateBattleKey();
+  applyBattleConfig({
+    key: currentBattleKey,
+    participants: buildParticipantsFromText(loadSavedNamesText()),
+    enabledPickups: PICKUP_OPTION_ORDER,
+    namesText: loadSavedNamesText(),
+  });
+  saveCurrentBattle({ silent: true });
+}
+
+resetBattle(getActiveParticipantNames());
 setStatus('Lista załogi gotowa. Kliknij "Uruchom losowanie".');
 render();

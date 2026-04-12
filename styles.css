@@ -158,20 +158,25 @@ button:active {
 
 .status-card,
 .winner-card,
-.bonus-panel {
+.bonus-panel,
+.battle-panel,
+.participants-panel {
   padding: 18px 20px;
   border-radius: 22px;
   background: var(--panel-strong);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.bonus-panel {
+.bonus-panel,
+.battle-panel,
+.participants-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.bonus-panel-head {
+.bonus-panel-head,
+.battle-panel-head {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -208,6 +213,104 @@ button:active {
   font-size: 0.84rem;
   font-weight: 700;
   color: var(--text);
+}
+
+.battle-actions,
+.participants-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.battle-link-card {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.battle-link-label {
+  margin: 0 0 6px;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+#battle-link {
+  display: block;
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.saved-battles,
+.participants-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.saved-battle-item,
+.participant-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.saved-battle-item.is-active {
+  border-color: rgba(126, 243, 197, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(126, 243, 197, 0.18);
+}
+
+.saved-battle-main,
+.participant-main {
+  min-width: 0;
+}
+
+.saved-battle-name,
+.participant-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.saved-battle-meta,
+.participant-meta {
+  margin: 4px 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.saved-battle-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.tiny-button {
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  box-shadow: none;
+}
+
+.participant-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.participant-toggle input {
+  margin: 0;
+  accent-color: #7ef3c5;
 }
 
 #winner-name {
@@ -417,6 +520,11 @@ canvas {
   }
 
   .bonus-options {
+    grid-template-columns: 1fr;
+  }
+
+  .battle-actions,
+  .participants-actions {
     grid-template-columns: 1fr;
   }
 

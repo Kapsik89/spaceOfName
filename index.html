@@ -28,6 +28,40 @@ Filip
 Gosia
 Hubert</textarea>
 
+        <section class="battle-panel">
+          <div class="battle-panel-head">
+            <p class="status-label">Zapamiętana bitwa</p>
+            <p class="bonus-note">Każda konfiguracja dostaje własny link</p>
+          </div>
+          <div class="battle-actions">
+            <button id="save-battle-button" type="button">Zapisz bitwę</button>
+            <button id="new-battle-button" type="button" class="ghost-button">
+              Nowa bitwa
+            </button>
+          </div>
+          <div class="battle-link-card">
+            <p class="battle-link-label">Link tej bitwy</p>
+            <a id="battle-link" href="/" target="_blank" rel="noreferrer">/</a>
+          </div>
+          <div id="saved-battles" class="saved-battles"></div>
+        </section>
+
+        <section class="participants-panel">
+          <div class="bonus-panel-head">
+            <p class="status-label">Uczestnicy bitwy</p>
+            <p class="bonus-note">Checkbox decyduje, kto bierze udział</p>
+          </div>
+          <div class="participants-actions">
+            <button id="select-all-button" type="button" class="ghost-button">
+              Zaznacz wszystkich
+            </button>
+            <button id="clear-all-button" type="button" class="ghost-button">
+              Odznacz wszystkich
+            </button>
+          </div>
+          <div id="participants-list" class="participants-list"></div>
+        </section>
+
         <div class="button-row">
           <button id="start-button" type="button">Uruchom losowanie</button>
           <button id="shuffle-button" type="button" class="ghost-button">

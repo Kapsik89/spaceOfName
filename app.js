@@ -833,7 +833,11 @@ function buildRoster(entrants) {
   entrants.forEach((entrant) => {
     const tile = document.createElement("article");
     tile.className = "roster-tile";
-    tile.style.background = `linear-gradient(160deg, ${entrant.color.soft}, rgba(255,255,255,0.05)), ${entrant.color.fill}`;
+    tile.style.background = `
+      linear-gradient(180deg, rgba(3, 10, 16, 0.92), rgba(8, 18, 28, 0.96)),
+      linear-gradient(140deg, ${entrant.color.soft}, rgba(255,255,255,0.04))
+    `;
+    tile.style.boxShadow = `inset 4px 0 0 ${entrant.color.fill}`;
 
     const nameNode = document.createElement("p");
     nameNode.className = "roster-name";

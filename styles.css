@@ -2,13 +2,16 @@
   color-scheme: dark;
   --bg: #06131d;
   --bg-deep: #020910;
-  --panel: rgba(7, 22, 34, 0.82);
-  --panel-strong: rgba(10, 28, 42, 0.95);
-  --stroke: rgba(157, 223, 255, 0.18);
-  --text: #edf8ff;
-  --muted: #a9bfcd;
+  --panel: rgba(6, 18, 28, 0.94);
+  --panel-strong: rgba(8, 21, 32, 0.98);
+  --panel-soft: rgba(12, 28, 42, 0.98);
+  --stroke: rgba(210, 235, 248, 0.3);
+  --stroke-strong: rgba(235, 246, 255, 0.52);
+  --text: #f5fbff;
+  --muted: #d1deea;
   --accent: #7ef3c5;
   --warning: #ffd480;
+  --focus-ring: #fff2a8;
   --shadow: 0 22px 70px rgba(0, 0, 0, 0.38);
   font-family: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
 }
@@ -106,19 +109,19 @@ textarea {
   width: 100%;
   min-height: 180px;
   resize: vertical;
-  border: 1px solid rgba(157, 223, 255, 0.2);
+  border: 1px solid var(--stroke);
   border-radius: 22px;
   padding: 18px;
   font: inherit;
   color: var(--text);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
-    rgba(3, 11, 18, 0.8);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    rgba(3, 11, 18, 0.94);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-textarea:focus {
-  outline: 2px solid rgba(126, 243, 197, 0.35);
+textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -131,6 +134,7 @@ textarea:focus {
 button {
   appearance: none;
   border: 0;
+  border: 1px solid transparent;
   border-radius: 999px;
   padding: 14px 18px;
   font: inherit;
@@ -152,7 +156,25 @@ button:active {
 
 .ghost-button {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--stroke);
+  box-shadow: none;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 1;
+  color: #d5e4ef;
+  background: #2d4353;
+  border-color: #8ea7b9;
   box-shadow: none;
 }
 
@@ -164,7 +186,7 @@ button:active {
   padding: 18px 20px;
   border-radius: 22px;
   background: var(--panel-strong);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--stroke);
 }
 
 .bonus-panel,
@@ -200,8 +222,8 @@ button:active {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--stroke);
 }
 
 .bonus-toggle input {
@@ -225,8 +247,8 @@ button:active {
 .battle-link-card {
   padding: 12px 14px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--panel-soft);
+  border: 1px solid var(--stroke-strong);
 }
 
 .battle-link-row {
@@ -248,7 +270,8 @@ button:active {
   display: block;
   color: var(--accent);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
   word-break: break-all;
 }
 
@@ -267,8 +290,8 @@ button:active {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--stroke);
 }
 
 .saved-battle-item.is-active {
@@ -282,8 +305,15 @@ button:active {
 }
 
 .participant-item.is-inactive {
-  opacity: 0.56;
-  background: rgba(255, 255, 255, 0.025);
+  opacity: 1;
+  background: rgba(12, 22, 31, 0.96);
+  border-color: rgba(209, 222, 234, 0.24);
+}
+
+.participant-item.is-inactive .participant-name,
+.participant-item.is-inactive .participant-toggle,
+.participant-item.is-inactive .participant-meta {
+  color: var(--muted);
 }
 
 .saved-battle-name,
@@ -382,8 +412,9 @@ button:active {
   gap: 10px;
   border-radius: 999px;
   padding: 10px 14px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--stroke);
 }
 
 .legend-dot {
@@ -441,7 +472,7 @@ canvas {
   min-height: 86px;
   padding: 14px;
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--stroke-strong);
   transition: transform 160ms ease, opacity 200ms ease, filter 200ms ease;
 }
 
@@ -452,13 +483,13 @@ canvas {
   width: 80px;
   height: 80px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
   filter: blur(2px);
 }
 
 .roster-tile.is-out {
-  opacity: 0.38;
-  filter: grayscale(0.35);
+  opacity: 1;
+  filter: saturate(0.4) brightness(0.72);
   transform: scale(0.98);
 }
 
@@ -479,26 +510,27 @@ canvas {
 .roster-name {
   font-weight: 900;
   font-size: 1.05rem;
+  color: var(--text);
 }
 
 .roster-health {
   margin-top: 10px;
   font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
 }
 
 .roster-weapon {
   margin-top: 6px;
   font-size: 0.78rem;
   letter-spacing: 0.03em;
-  color: rgba(3, 16, 24, 0.88);
+  color: var(--text);
   font-weight: 800;
 }
 
 .roster-meta {
   font-size: 0.74rem;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.88);
+  color: var(--muted);
 }
 
 .roster-card {

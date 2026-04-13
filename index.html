@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kosmiczne Losowanie</title>
+    <title>Space of Name</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="control-panel">
         <div class="panel-copy">
-          <p class="eyebrow">Losowanie bez koła</p>
-          <h1>Kosmiczna plansza imion</h1>
+          <p class="eyebrow">No wheel required</p>
+          <h1>Space battle name board</h1>
           <p class="lead">
-            Wpisz imiona, a każde dostanie swój kolor i statek. Statki będą
-            walczyć na planszy, aż zostanie tylko jeden zwycięzca.
+            Enter names and each one gets its own color and spaceship. The ships
+            will battle across the arena until only one winner remains.
           </p>
         </div>
 
-        <label class="input-label" for="names-input">Imiona, po jednym w linii</label>
+        <label class="input-label" for="names-input">Names, one per line</label>
         <textarea id="names-input" spellcheck="false">Ania
 Bartek
 Celina
@@ -30,17 +30,17 @@ Hubert</textarea>
 
         <section class="battle-panel">
           <div class="battle-panel-head">
-            <p class="status-label">Zapamiętana bitwa</p>
-            <p class="bonus-note">Każda konfiguracja dostaje własny link</p>
+            <p class="status-label">Saved battle</p>
+            <p class="bonus-note">Each setup gets its own shareable link</p>
           </div>
           <div class="battle-actions">
-            <button id="save-battle-button" type="button">Zapisz bitwę</button>
+            <button id="save-battle-button" type="button">Save battle</button>
             <button id="new-battle-button" type="button" class="ghost-button">
-              Nowa bitwa
+              New battle
             </button>
           </div>
           <div class="battle-link-card">
-            <p class="battle-link-label">Link tej bitwy</p>
+            <p class="battle-link-label">Battle link</p>
             <div class="battle-link-row">
               <a id="battle-link" href="/" target="_blank" rel="noreferrer">/</a>
               <button
@@ -48,7 +48,7 @@ Hubert</textarea>
                 type="button"
                 class="ghost-button tiny-button"
               >
-                Kopiuj link
+                Copy link
               </button>
             </div>
           </div>
@@ -56,42 +56,42 @@ Hubert</textarea>
 
         <section class="participants-panel">
           <div class="bonus-panel-head">
-            <p class="status-label">Uczestnicy bitwy</p>
-            <p class="bonus-note">Checkbox decyduje, kto bierze udział</p>
+            <p class="status-label">Battle participants</p>
+            <p class="bonus-note">Use the checkbox to include or exclude each name</p>
           </div>
           <div class="participants-actions">
             <button id="select-all-button" type="button" class="ghost-button">
-              Zaznacz wszystkich
+              Select all
             </button>
             <button id="clear-all-button" type="button" class="ghost-button">
-              Odznacz wszystkich
+              Clear all
             </button>
           </div>
           <div id="participants-list" class="participants-list"></div>
         </section>
 
         <div class="button-row">
-          <button id="start-button" type="button">Uruchom losowanie</button>
+          <button id="start-button" type="button">Start battle</button>
           <button id="shuffle-button" type="button" class="ghost-button">
-            Przetasuj ponownie
+            Shuffle again
           </button>
         </div>
 
         <section class="bonus-panel">
           <div class="bonus-panel-head">
-            <p class="status-label">Bonusy na mapie</p>
-            <p class="bonus-note">Odznacz to, czego nie chcesz losować</p>
+            <p class="status-label">Arena pickups</p>
+            <p class="bonus-note">Uncheck anything you do not want to spawn</p>
           </div>
           <div id="bonus-options" class="bonus-options"></div>
         </section>
 
         <div class="status-card">
           <p class="status-label">Status</p>
-          <p id="status-text">Gotowe do startu.</p>
+          <p id="status-text">Ready to start.</p>
         </div>
 
         <div class="winner-card" id="winner-card" hidden>
-          <p class="status-label">Zwycięzca</p>
+          <p class="status-label">Winner</p>
           <p id="winner-name"></p>
         </div>
       </aside>
@@ -101,11 +101,11 @@ Hubert</textarea>
           <div class="board-heading">
             <div>
               <p class="eyebrow">Arena</p>
-              <h2>Widok z góry</h2>
+              <h2>Top-down view</h2>
             </div>
             <div class="legend-pill">
               <span class="legend-dot"></span>
-              <span>Bronie, osłony i turbo pojawiają się na mapie</span>
+              <span>Weapons, shields, and speed boosts appear on the map</span>
             </div>
           </div>
 
@@ -118,10 +118,10 @@ Hubert</textarea>
         <section class="roster-card">
           <div class="board-heading compact">
             <div>
-              <p class="eyebrow">Załoga</p>
-              <h2>Kolory i imiona</h2>
+              <p class="eyebrow">Roster</p>
+              <h2>Colors and names</h2>
             </div>
-            <p class="roster-note">Kolor pola = kolor statku, niżej broń i bonusy</p>
+            <p class="roster-note">Tile color = ship color, with weapon and bonuses below</p>
           </div>
           <div id="roster-grid" class="roster-grid"></div>
         </section>

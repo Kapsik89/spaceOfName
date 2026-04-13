@@ -29,7 +29,7 @@ function normalizeTitle(title, fallbackConfig) {
       .filter(Boolean);
 
     if (activeNames.length <= 3) {
-      return activeNames.join(", ") || "Kosmiczna bitwa";
+      return activeNames.join(", ") || "Space battle";
     }
 
     if (activeNames.length > 3) {
@@ -37,7 +37,7 @@ function normalizeTitle(title, fallbackConfig) {
     }
   }
 
-  return "Kosmiczna bitwa";
+  return "Space battle";
 }
 
 export async function onRequestPost(context) {

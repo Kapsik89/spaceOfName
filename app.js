@@ -54,7 +54,7 @@ const backgroundContext = backgroundCanvas.getContext("2d");
 const WEAPON_TYPES = {
   blaster: {
     label: "Blaster",
-    pickupLabel: "Startowa",
+    pickupLabel: "Starter",
     color: "#ffd480",
     charges: Infinity,
     reloadMin: 0.45,
@@ -62,8 +62,8 @@ const WEAPON_TYPES = {
     shape: "triangle",
   },
   spread: {
-    label: "Rozrzut",
-    pickupLabel: "Rozrzut x6",
+    label: "Spread",
+    pickupLabel: "Spread x6",
     color: "#7ef3c5",
     charges: 6,
     reloadMin: 0.62,
@@ -71,8 +71,8 @@ const WEAPON_TYPES = {
     shape: "fan",
   },
   rapid: {
-    label: "Szybkostrzał",
-    pickupLabel: "Szybkostrzał x18",
+    label: "Rapid Fire",
+    pickupLabel: "Rapid Fire x18",
     color: "#6dc6ff",
     charges: 18,
     reloadMin: 0.14,
@@ -80,8 +80,8 @@ const WEAPON_TYPES = {
     shape: "chevrons",
   },
   plasma: {
-    label: "Plazma",
-    pickupLabel: "Plazma x5",
+    label: "Plasma",
+    pickupLabel: "Plasma x5",
     color: "#ff7edb",
     charges: 5,
     reloadMin: 0.8,
@@ -89,8 +89,8 @@ const WEAPON_TYPES = {
     shape: "orb",
   },
   rocket: {
-    label: "Rakiety",
-    pickupLabel: "Rakiety x4",
+    label: "Rockets",
+    pickupLabel: "Rockets x4",
     color: "#ff8d6d",
     charges: 4,
     reloadMin: 0.9,
@@ -107,8 +107,8 @@ const WEAPON_TYPES = {
     shape: "laser",
   },
   mine: {
-    label: "Miny",
-    pickupLabel: "Miny x4",
+    label: "Mines",
+    pickupLabel: "Mines x4",
     color: "#c7ff6e",
     charges: 4,
     reloadMin: 0.68,
@@ -119,20 +119,20 @@ const WEAPON_TYPES = {
 
 const SUPPORT_TYPES = {
   repair: {
-    label: "Naprawa",
-    pickupLabel: "Naprawa +2",
+    label: "Repair",
+    pickupLabel: "Repair +2",
     color: "#ffb36d",
     shape: "plus",
   },
   shield: {
-    label: "Tarcza",
-    pickupLabel: "Osłona +2",
+    label: "Shield",
+    pickupLabel: "Shield +2",
     color: "#7edbff",
     shape: "shield",
   },
   speed: {
-    label: "Turbo",
-    pickupLabel: "Turbo 7s",
+    label: "Boost",
+    pickupLabel: "Boost 7s",
     color: "#ffe66d",
     shape: "bolt",
   },
@@ -245,7 +245,7 @@ function updateBattleLink() {
 
   if (!currentBattleKey) {
     battleLink.href = window.location.origin;
-    battleLink.textContent = "Zapisz bitwę, aby dostać link do udostępnienia";
+    battleLink.textContent = "Save the battle to get a shareable link";
     copyBattleLinkButton.disabled = true;
     return;
   }
@@ -255,14 +255,14 @@ function updateBattleLink() {
   battleLink.href = fullUrl;
   battleLink.textContent = isPublished
     ? fullUrl
-    : `${fullUrl} (szkic lokalny - kliknij "Zapisz bitwę")`;
+    : `${fullUrl} (local draft - click "Save battle")`;
   copyBattleLinkButton.disabled = !isPublished;
 }
 
 function setBattlePublishState(isPublishing) {
   isPublishingBattle = isPublishing;
   saveBattleButton.disabled = isPublishing;
-  saveBattleButton.textContent = isPublishing ? "Zapisywanie..." : "Zapisz bitwę";
+  saveBattleButton.textContent = isPublishing ? "Saving..." : "Save battle";
 }
 
 function setBattlePath(key) {
@@ -323,7 +323,7 @@ async function getRemoteBattle(key) {
 
 function deriveBattleTitle(participants) {
   const activeNames = participants.filter((participant) => participant.active).map((participant) => participant.name);
-  if (!activeNames.length) return "Pusta bitwa";
+  if (!activeNames.length) return "Empty battle";
   if (activeNames.length <= 3) return activeNames.join(", ");
   return `${activeNames.slice(0, 3).join(", ")} +${activeNames.length - 3}`;
 }
@@ -417,7 +417,7 @@ function saveCurrentBattle(options = {}) {
   renderSavedBattles();
 
   if (!silent) {
-    setStatus(`Bitwa zapisana pod kluczem: ${currentBattleKey.slice(0, 8)}...`);
+    setStatus(`Battle saved under key: ${currentBattleKey.slice(0, 8)}...`);
   }
 }
 
@@ -462,7 +462,7 @@ async function publishCurrentBattle() {
     persistBattleStore();
     setBattlePath(currentBattleKey);
     renderSavedBattles();
-    setStatus("Bitwa została zapisana i ma już link do udostępnienia.");
+    setStatus("Battle saved. Your shareable link is ready.");
   } finally {
     setBattlePublishState(false);
   }
@@ -491,7 +491,7 @@ async function loadBattleByKey(key) {
     applyBattleConfig(localRecord);
     setBattlePath(key);
     renderSavedBattles();
-    setStatus("Wczytano zapisaną bitwę z chmury.");
+    setStatus("Saved battle loaded from the cloud.");
     return true;
   } catch (error) {
     if (existingBattle) {
@@ -500,7 +500,7 @@ async function loadBattleByKey(key) {
       persistBattleStore();
       setBattlePath(key);
       renderSavedBattles();
-      setStatus("Nie udało się pobrać bitwy z chmury. Wczytano lokalną kopię.");
+      setStatus("Could not load the cloud battle. Loaded the local copy instead.");
       return true;
     }
 
@@ -512,7 +512,7 @@ async function loadBattleByKey(key) {
     });
     setBattlePath(key);
     renderSavedBattles();
-    setStatus("Nie znaleziono tej bitwy w chmurze. Możesz zapisać nową pod tym linkiem.");
+    setStatus("This battle was not found in the cloud. You can save a new one under this link.");
     return false;
   }
 }
@@ -541,7 +541,7 @@ function deleteBattle(key) {
       });
       setBattlePath(currentBattleKey);
       renderSavedBattles();
-      setStatus("Usunięto bitwę. Utworzono nową lokalną konfigurację.");
+      setStatus("Battle removed. A new local setup has been created.");
     }
     return;
   }
@@ -559,7 +559,7 @@ function renderSavedBattles() {
   if (!battleEntries.length) {
     const emptyState = document.createElement("p");
     emptyState.className = "bonus-note";
-    emptyState.textContent = "Brak zapisanych bitew w tej przeglądarce.";
+    emptyState.textContent = "No saved battles in this browser.";
     savedBattles.appendChild(emptyState);
     return;
   }
@@ -581,8 +581,8 @@ function renderSavedBattles() {
     const meta = document.createElement("p");
     meta.className = "saved-battle-meta";
     const activeCount = (battle.participants ?? []).filter((participant) => participant.active).length;
-    const publishLabel = battle.published ? "udostępnialna" : "lokalna";
-    meta.textContent = `${activeCount} aktywnych | ${publishLabel} | /battle/${battle.key}`;
+    const publishLabel = battle.published ? "shareable" : "local";
+    meta.textContent = `${activeCount} active | ${publishLabel} | /battle/${battle.key}`;
 
     main.append(title, meta);
 
@@ -592,7 +592,7 @@ function renderSavedBattles() {
     const openButton = document.createElement("button");
     openButton.type = "button";
     openButton.className = "ghost-button tiny-button";
-    openButton.textContent = "Otwórz";
+    openButton.textContent = "Open";
     openButton.addEventListener("click", async () => {
       await loadBattleByKey(battle.key);
       resetBattle(getActiveParticipantNames());
@@ -602,7 +602,7 @@ function renderSavedBattles() {
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
     deleteButton.className = "ghost-button tiny-button";
-    deleteButton.textContent = "Usuń z listy";
+    deleteButton.textContent = "Remove";
     deleteButton.addEventListener("click", () => {
       deleteBattle(battle.key);
     });
@@ -625,7 +625,7 @@ function renderParticipantsList() {
   if (!participantsState.length) {
     const emptyState = document.createElement("p");
     emptyState.className = "bonus-note";
-    emptyState.textContent = "Dodaj imiona w polu powyżej.";
+    emptyState.textContent = "Add names in the field above.";
     participantsList.appendChild(emptyState);
     return;
   }
@@ -653,7 +653,7 @@ function renderParticipantsList() {
 
     const meta = document.createElement("p");
     meta.className = "participant-meta";
-    meta.textContent = participant.active ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
+    meta.textContent = participant.active ? "Included in this battle" : "Excluded from this battle";
 
     main.append(title, meta);
 
@@ -666,12 +666,12 @@ function renderParticipantsList() {
     input.addEventListener("change", () => {
       participantsState[index].active = input.checked;
       item.classList.toggle("is-inactive", !input.checked);
-      meta.textContent = input.checked ? "Weźmie udział w bitwie" : "Pominięty w tej bitwie";
+      meta.textContent = input.checked ? "Included in this battle" : "Excluded from this battle";
       saveCurrentBattle({ silent: true });
     });
 
     const text = document.createElement("span");
-    text.textContent = "Gra";
+    text.textContent = "Play";
 
     toggle.append(input, text);
     item.append(main, toggle);
@@ -841,15 +841,15 @@ function buildRoster(entrants) {
 
     const healthNode = document.createElement("p");
     healthNode.className = "roster-health";
-    healthNode.textContent = `Kadłub: ${entrant.health}/${SHIP_MAX_HEALTH}`;
+    healthNode.textContent = `Hull: ${entrant.health}/${SHIP_MAX_HEALTH}`;
 
     const weaponNode = document.createElement("p");
     weaponNode.className = "roster-weapon";
-    weaponNode.textContent = `Broń: ${getWeaponConfig(entrant.weaponKey).label}`;
+    weaponNode.textContent = `Weapon: ${getWeaponConfig(entrant.weaponKey).label}`;
 
     const metaNode = document.createElement("p");
     metaNode.className = "roster-meta";
-    metaNode.textContent = "Osłona: 0 | Napęd: standard";
+    metaNode.textContent = "Shield: 0 | Engine: standard";
 
     tile.append(nameNode, healthNode, weaponNode, metaNode);
     rosterGrid.appendChild(tile);
@@ -866,17 +866,17 @@ function updateRoster() {
 
     const health = tile.querySelector(".roster-health");
     health.textContent = ship.alive
-      ? `Kadłub: ${Math.max(ship.health, 0)}/${SHIP_MAX_HEALTH}`
-      : "Wyłączony";
+      ? `Hull: ${Math.max(ship.health, 0)}/${SHIP_MAX_HEALTH}`
+      : "Disabled";
 
     const weapon = tile.querySelector(".roster-weapon");
     const weaponConfig = getWeaponConfig(ship.weaponKey);
     const charges = Number.isFinite(ship.weaponCharges) ? ` (${ship.weaponCharges})` : "";
-    weapon.textContent = `Broń: ${weaponConfig.label}${charges}`;
+    weapon.textContent = `Weapon: ${weaponConfig.label}${charges}`;
 
     const meta = tile.querySelector(".roster-meta");
-    const speedText = ship.speedBoostTimer > 0 ? "turbo" : "standard";
-    meta.textContent = `Osłona: ${ship.shield} | Napęd: ${speedText}`;
+    const speedText = ship.speedBoostTimer > 0 ? "boosted" : "standard";
+    meta.textContent = `Shield: ${ship.shield} | Engine: ${speedText}`;
   });
   rosterDirty = false;
 }
@@ -941,9 +941,9 @@ function resetBattle(customNames) {
   buildRoster(ships);
   updateRoster();
   if (ships.length) {
-    setStatus(`Walka trwa. Na planszy: ${ships.length} statków.`);
+      setStatus(`Battle in progress. Ships on the field: ${ships.length}.`);
   } else {
-    setStatus("Ta bitwa nie ma jeszcze aktywnych uczestników.");
+    setStatus("This battle does not have any active participants yet.");
   }
 }
 
@@ -1013,7 +1013,7 @@ function applyDamage(ship, amount, color) {
 
   if (ship.health <= 0) {
     killShip(ship);
-    setStatus(`Walka trwa. Pozostało statków: ${getLivingShips().length}.`);
+    setStatus(`Battle in progress. Ships remaining: ${getLivingShips().length}.`);
   }
 
   markRosterDirty();
@@ -1546,7 +1546,7 @@ function updatePickups(dt, livingShips, pickupClaims) {
     }
 
     const pickupConfig = getPickupConfig(pickup.pickupKey);
-    setStatus(`${collector.name} podnosi: ${pickupConfig.pickupLabel}.`);
+    setStatus(`${collector.name} picked up: ${pickupConfig.pickupLabel}.`);
     emitSparks(pickup.x, pickup.y, pickupConfig.color, 14);
     return false;
   });
@@ -1575,7 +1575,7 @@ function maybeResolveWinner() {
   if (livingShips.length !== 1 || winner) return;
 
   setWinner(livingShips[0]);
-  setStatus(`Losowanie zakończone. Wygrywa: ${livingShips[0].name}.`);
+  setStatus(`Battle complete. Winner: ${livingShips[0].name}.`);
 }
 
 function drawBackground() {
@@ -2092,7 +2092,7 @@ function startBattle() {
   saveCurrentBattle({ silent: true });
 
   if (names.length < 2) {
-    setStatus("Zaznacz przynajmniej 2 osoby, żeby rozpocząć walkę.");
+    setStatus("Select at least 2 people to start the battle.");
     clearWinner();
     return;
   }
@@ -2119,9 +2119,9 @@ bonusOptions.addEventListener("change", () => {
   saveCurrentBattle({ silent: true });
   const enabledCount = getEnabledPickupKeys().length;
   if (enabledCount === 0) {
-    setStatus("Wszystkie bonusy na mapie są wyłączone.");
+    setStatus("All arena pickups are disabled.");
   } else {
-    setStatus(`Aktywne bonusy na mapie: ${enabledCount}.`);
+    setStatus(`Active arena pickups: ${enabledCount}.`);
   }
   render();
 });
@@ -2137,7 +2137,7 @@ saveBattleButton.addEventListener("click", async () => {
   try {
     await publishCurrentBattle();
   } catch (error) {
-    setStatus(`Nie udało się zapisać bitwy w chmurze: ${error.message}`);
+    setStatus(`Could not save the battle to the cloud: ${error.message}`);
   }
 });
 
@@ -2146,22 +2146,22 @@ copyBattleLinkButton.addEventListener("click", async () => {
     ? battleStore.battles[currentBattleKey]?.published === true
     : false;
   if (!currentBattleKey || !isPublished) {
-    setStatus('Najpierw kliknij "Zapisz bitwę", żeby dostać działający link do wysłania.');
+    setStatus('Click "Save battle" first to get a working link you can share.');
     return;
   }
 
   try {
     await navigator.clipboard.writeText(`${window.location.origin}/battle/${currentBattleKey}`);
-    setStatus("Link do bitwy skopiowany do schowka.");
+    setStatus("Battle link copied to clipboard.");
   } catch {
-    setStatus("Nie udało się skopiować linku. Skopiuj go ręcznie z pola poniżej.");
+    setStatus("Could not copy the link. Please copy it manually from the field below.");
   }
 });
 
 newBattleButton.addEventListener("click", () => {
   currentBattleKey = generateBattleKey();
   saveCurrentBattle({ silent: true });
-  setStatus("Utworzono nową lokalną bitwę. Kliknij „Zapisz bitwę”, aby dostać link.");
+  setStatus('Created a new local battle. Click "Save battle" to get a link.');
 });
 
 selectAllButton.addEventListener("click", () => {
@@ -2204,8 +2204,8 @@ async function bootstrap() {
   }
 
   resetBattle(getActiveParticipantNames());
-  if (!statusText.textContent || statusText.textContent === "Gotowe do startu.") {
-    setStatus('Lista załogi gotowa. Kliknij "Uruchom losowanie".');
+  if (!statusText.textContent || statusText.textContent === "Ready to start.") {
+    setStatus('Roster ready. Click "Start battle".');
   }
   render();
 }
